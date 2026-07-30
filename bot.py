@@ -5,7 +5,7 @@ from flask import Flask, request
 import telebot
 
 TOKEN = "8937690024:AAGmYikGTmqwFIHPnt1utvYn1hh8CHAXHU0"
-WEBHOOK_URL = "https://botipppp-3.onrender.com"
+WEBHOOK_URL = "https://botipppp-7.onrender.com"
 
 bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
