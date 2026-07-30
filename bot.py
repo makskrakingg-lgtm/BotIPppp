@@ -7,21 +7,15 @@ import telebot
 from flask import Flask
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# ============================================================
-#  НАСТРОЙКИ
-# ============================================================
 TOKEN = "8937690024:AAGmYikGTmqwFIHPnt1utvYn1hh8CHAXHU0"
 bot = telebot.TeleBot(TOKEN)
 
-user_consent = {}   # user_id: True/False
-user_premium = {}   # user_id: timestamp окончания
-user_data = {}      # user_id: данные
+user_consent = {}
+user_premium = {}
+user_data = {}
 
 ADMIN_ID = 8937690024
 
-# ============================================================
-#  FLASK ДЛЯ RENDER
-# ============================================================
 app = Flask(__name__)
 
 @app.route('/')
@@ -34,9 +28,6 @@ def run_flask():
 
 threading.Thread(target=run_flask, daemon=True).start()
 
-# ============================================================
-#  АВТО-ПИНГ
-# ============================================================
 def keep_alive():
     url = os.environ.get("RENDER_EXTERNAL_URL", "https://botipppp-7.onrender.com")
     while True:
@@ -49,19 +40,16 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-# ============================================================
-#  ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ
-# ============================================================
 PRIVACY_TEXT = """
-📋 *Условия конфиденциальности*
+Условия конфиденциальности
 
 Для работы бота мы собираем:
-• Ваш IP-адрес (для геолокации)
-• Ваш ID в Telegram (для статистики)
+- Ваш IP-адрес (для геолокации)
+- Ваш ID в Telegram (для статистики)
 
 Данные используются только для:
-• Показа геолокации по IP
-• Статистики
+- Показа геолокации по IP
+- Статистики
 
 Мы НЕ передаём данные третьим лицам.
 
@@ -81,9 +69,8 @@ def send_welcome(message):
         keyboard.row(InlineKeyboardButton("❓ Помощь", callback_data="help"))
         bot.reply_to(
             message,
-            "🌍 *IP Геолокатор Бот*\n\nОтправь IP-адрес или выбери действие:",
-            reply_markup=keyboard,
-            parse_mode="Markdown"
+            "🌍 IP Геолокатор Бот\n\nОтправь IP-адрес или выбери действие:",
+            reply_markup=keyboard
         )
         return
 
@@ -92,56 +79,46 @@ def send_welcome(message):
         InlineKeyboardButton("✅ Принимаю", callback_data="accept"),
         InlineKeyboardButton("❌ Отказываюсь", callback_data="decline")
     )
-    bot.reply_to(message, PRIVACY_TEXT, reply_markup=keyboard, parse_mode="Markdown")
+    bot.reply_to(message, PRIVACY_TEXT, reply_markup=keyboard)
 
-# ============================================================
-#  ОБРАБОТЧИК ВСЕХ КНОПОК
-# ============================================================
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
     user_id = call.message.chat.id
 
-    # --- ПРИНЯТЬ УСЛОВИЯ ---
     if call.data == "accept":
         user_consent[user_id] = True
         bot.edit_message_text(
             "✅ Спасибо! Ты принял условия.\n\nТеперь отправь мне IP-адрес, или нажми /start",
             chat_id=user_id,
-            message_id=call.message.message_id,
-            parse_mode="Markdown"
+            message_id=call.message.message_id
         )
         bot.send_message(ADMIN_ID, f"🆕 Новый пользователь: {user_id}")
         bot.answer_callback_query(call.id)
         return
 
-    # --- ОТКАЗАТЬСЯ ---
     if call.data == "decline":
         user_consent[user_id] = False
         bot.edit_message_text(
             "❌ Ты отказался от условий.\n\nБот работает в ограниченном режиме.",
             chat_id=user_id,
-            message_id=call.message.message_id,
-            parse_mode="Markdown"
+            message_id=call.message.message_id
         )
         bot.answer_callback_query(call.id)
         return
 
-    # --- ПРЕМИУМ: ИНФО ---
     if call.data == "premium_info":
         status = "✅ Активна" if user_premium.get(user_id, 0) > time.time() else "❌ Не активна"
         keyboard = InlineKeyboardMarkup()
         keyboard.row(InlineKeyboardButton("⭐ Купить за 50 Stars", callback_data="buy_premium"))
         bot.edit_message_text(
-            f"⭐ *Премиум-подписка*\n\nСтатус: {status}\n\n• Безлимит запросов\n• История\n• Экспорт CSV\n• Приоритет\n\nЦена: 50 Stars (≈ 30 дней)",
+            f"⭐ Премиум-подписка\n\nСтатус: {status}\n\n- Безлимит запросов\n- История\n- Экспорт CSV\n- Приоритет\n\nЦена: 50 Stars (≈ 30 дней)",
             chat_id=user_id,
             message_id=call.message.message_id,
-            reply_markup=keyboard,
-            parse_mode="Markdown"
+            reply_markup=keyboard
         )
         bot.answer_callback_query(call.id)
         return
 
-    # --- ПРЕМИУМ: КУПИТЬ ---
     if call.data == "buy_premium":
         try:
             bot.send_invoice(
@@ -162,18 +139,15 @@ def handle_callback(call):
         bot.answer_callback_query(call.id)
         return
 
-    # --- ПОМОЩЬ ---
     if call.data == "help":
         bot.edit_message_text(
-            "🤖 *Команды:*\n/start — главное меню\n/help — помощь\n/delete_data — удалить данные\n/premium — статус подписки\n\n📌 Отправь IP, например 8.8.8.8",
+            "🤖 Команды:\n/start - главное меню\n/help - помощь\n/delete_data - удалить данные\n/premium - статус подписки\n\nОтправь IP, например 8.8.8.8",
             chat_id=user_id,
-            message_id=call.message.message_id,
-            parse_mode="Markdown"
+            message_id=call.message.message_id
         )
         bot.answer_callback_query(call.id)
         return
 
-    # --- МОЙ IP ---
     if call.data == "my_ip":
         try:
             ip = requests.get('https://api.ipify.org').text
@@ -183,9 +157,6 @@ def handle_callback(call):
         bot.answer_callback_query(call.id)
         return
 
-# ============================================================
-#  ОБРАБОТКА ПЛАТЕЖЕЙ
-# ============================================================
 @bot.pre_checkout_query_handler(func=lambda query: True)
 def handle_pre_checkout(query):
     bot.answer_pre_checkout_query(query.id, ok=True)
@@ -196,9 +167,6 @@ def handle_payment(message):
     user_premium[user_id] = time.time() + 30 * 86400
     bot.send_message(user_id, "⭐ Премиум активирован на 30 дней!")
 
-# ============================================================
-#  ГЕОЛОКАЦИЯ
-# ============================================================
 @bot.message_handler(func=lambda message: True)
 def handle_ip(message):
     user_id = message.chat.id
@@ -225,29 +193,25 @@ def handle_ip(message):
         map_url = f"https://www.google.com/maps?q={lat},{lon}" if lat and lon else None
 
         result = (
-            f"📍 *Геолокация IP: {ip}*\n\n"
-            f"🌍 *Страна:* {data.get('country', 'Неизвестно')}\n"
-            f"🏙️ *Город:* {data.get('city', 'Неизвестно')}\n"
-            f"📡 *Провайдер:* {data.get('isp', 'Неизвестно')}\n"
-            f"🗺️ *Координаты:* {lat}, {lon}"
+            f"📍 Геолокация IP: {ip}\n\n"
+            f"🌍 Страна: {data.get('country', 'Неизвестно')}\n"
+            f"🏙️ Город: {data.get('city', 'Неизвестно')}\n"
+            f"📡 Провайдер: {data.get('isp', 'Неизвестно')}\n"
+            f"🗺️ Координаты: {lat}, {lon}"
         )
         if map_url:
-            result += f"\n\n[🌍 Открыть на Google Картах]({map_url})"
+            result += f"\n\nКарта: {map_url}"
 
-        bot.reply_to(message, result, parse_mode="Markdown")
+        bot.reply_to(message, result)
 
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка: {str(e)[:100]}")
 
-# ============================================================
-#  КОМАНДЫ
-# ============================================================
 @bot.message_handler(commands=['help'])
 def send_help(message):
     bot.reply_to(
         message,
-        "🤖 *Команды:*\n/start — главное меню\n/help — помощь\n/delete_data — удалить данные\n/premium — статус подписки\n\n📌 Отправь IP, например 8.8.8.8",
-        parse_mode="Markdown"
+        "🤖 Команды:\n/start - главное меню\n/help - помощь\n/delete_data - удалить данные\n/premium - статус подписки\n\nОтправь IP, например 8.8.8.8"
     )
 
 @bot.message_handler(commands=['delete_data'])
@@ -260,11 +224,8 @@ def delete_data(message):
 def premium_status(message):
     user_id = message.chat.id
     status = "✅ Активна" if user_premium.get(user_id, 0) > time.time() else "❌ Не активна"
-    bot.reply_to(message, f"⭐ *Статус подписки:* {status}", parse_mode="Markdown")
+    bot.reply_to(message, f"⭐ Статус подписки: {status}")
 
-# ============================================================
-#  ЗАПУСК
-# ============================================================
 print("✅ Бот запущен")
 while True:
     try:
