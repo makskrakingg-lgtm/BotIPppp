@@ -79,3 +79,21 @@ while True:
     except Exception as e:
         print(f"Ошибка: {e}")
         time.sleep(5)
+        import os
+from flask import Flask
+import threading
+
+app = Flask(__name__)
+
+@app.route('/')
+def health():
+    return "Bot is running", 200
+
+def run_health_server():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+# Запускаем health-сервер в фоновом потоке
+threading.Thread(target=run_health_server, daemon=True).start()
+
+# Ваш основной код бота продолжается ниже...
