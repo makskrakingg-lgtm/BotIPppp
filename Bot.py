@@ -1,4 +1,4 @@
-import os
+    import os
 import requests
 import re
 from flask import Flask, request
@@ -32,18 +32,7 @@ def handle_ip(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка: {str(e)[:100]}")
 
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        update = telebot.types.Update.de_json(request.get_data().decode('UTF-8'))
-        bot.process_new_updates([update])
-        return '', 200
-    return '', 400
-
-@app.route('/')
-def index():
-    return "✅ Bot is running!", 200
-
-if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    
