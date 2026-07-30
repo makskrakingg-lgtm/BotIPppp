@@ -2,13 +2,14 @@ import telebot
 import requests
 import re
 import time
+import sys
 
 TOKEN = "8937690024:AAGmYikGTmqwFIHPnt1utvYn1hh8CHAXHU0"
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "✅ Привет! Отправь мне IP-адрес, и я покажу геолокацию.")
+    bot.reply_to(message, "✅ Привет! Отправь мне IP-адрес.")
 
 @bot.message_handler(func=lambda message: True)
 def handle_ip(message):
@@ -21,7 +22,7 @@ def handle_ip(message):
         resp = requests.get(url, timeout=8)
         data = resp.json()
         if data.get('status') != 'success':
-            bot.reply_to(message, "❌ Не удалось определить геолокацию.")
+            bot.reply_to(message, "❌ Не удалось определить.")
             return
         result = (
             f"📍 *Геолокация IP: {ip}*\n\n"
@@ -34,5 +35,10 @@ def handle_ip(message):
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка: {str(e)[:100]}")
 
-print("✅ Бот запущен и работает...")
-bot.infinity_polling()
+print("✅ Бот запущен")
+while True:
+    try:
+        bot.infinity_polling(timeout=30, long_polling_timeout=30)
+    except Exception as e:
+        print(f"Ошибка: {e}")
+        time.sleep(5)
