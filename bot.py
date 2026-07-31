@@ -53,7 +53,7 @@ def keep_alive():
 threading.Thread(target=keep_alive, daemon=True).start()
 
 PRIVACY_TEXT = """
-📋 *Условия конфиденциальности*
+📋 Условия конфиденциальности
 
 Для работы бота мы собираем:
 - Ваш IP-адрес (для геолокации)
@@ -131,7 +131,7 @@ def send_welcome(message):
         InlineKeyboardButton("✅ Принимаю", callback_data="accept"),
         InlineKeyboardButton("❌ Отказываюсь", callback_data="decline")
     )
-    bot.reply_to(message, PRIVACY_TEXT, reply_markup=keyboard, parse_mode="Markdown")
+    bot.reply_to(message, PRIVACY_TEXT, reply_markup=keyboard)
 
 @bot.callback_query_handler(func=lambda call: call.data == "check_sub")
 def check_subscription(call):
@@ -163,13 +163,12 @@ def handle_callback(call):
         first_name = user.first_name or "Нет имени"
         bot.send_message(
             ADMIN_ID,
-            f"🆕 *Новый пользователь принял условия*\n\n"
-            f"🆔 ID: `{user_id}`\n"
+            f"🆕 Новый пользователь принял условия\n\n"
+            f"🆔 ID: {user_id}\n"
             f"👤 Имя: {first_name}\n"
             f"🔗 Юзернейм: @{username}\n"
-            f"🌍 IP: `{user_ip}`\n"
-            f"🕒 Время: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}",
-            parse_mode="Markdown"
+            f"🌍 IP: {user_ip}\n"
+            f"🕒 Время: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}"
         )
         bot.edit_message_text(
             "✅ Спасибо! Ты принял условия.\n\nТеперь выбери действие:",
@@ -225,7 +224,7 @@ def handle_callback(call):
         if not history:
             bot.answer_callback_query(call.id, "📭 За сегодня нет запросов.", show_alert=True)
             return
-        text = "📜 *История поиска*:\n\n"
+        text = "📜 История поиска:\n\n"
         for i, entry in enumerate(history[-10:], 1):
             text += f"{i}. {entry['ip']} — {entry['time']}\n"
         if not is_premium:
@@ -238,8 +237,7 @@ def handle_callback(call):
             text,
             chat_id=user_id,
             message_id=call.message.message_id,
-            reply_markup=keyboard,
-            parse_mode="Markdown"
+            reply_markup=keyboard
         )
         bot.answer_callback_query(call.id)
         return
@@ -314,19 +312,18 @@ def handle_callback(call):
         keyboard = InlineKeyboardMarkup()
         keyboard.row(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_menu"))
         bot.edit_message_text(
-            "🤖 *Помощь*\n\n"
-            "📌 *Команды:*\n"
+            "🤖 Помощь\n\n"
+            "📌 Команды:\n"
             "/start — главное меню\n"
             "/help — помощь\n"
             "/delete_data — удалить данные\n"
             "/premium — статус подписки\n\n"
-            "📊 *Бесплатно:* 2 запроса в день\n"
-            "⭐ *Премиум:* безлимит, полная история, VPN-статус\n\n"
+            "📊 Бесплатно: 2 запроса в день\n"
+            "⭐ Премиум: безлимит, полная история, VPN-статус\n\n"
             "📞 По вопросам: @blackbox_research",
             chat_id=user_id,
             message_id=call.message.message_id,
-            reply_markup=keyboard,
-            parse_mode="Markdown"
+            reply_markup=keyboard
         )
         bot.answer_callback_query(call.id)
         return
@@ -489,17 +486,16 @@ def send_help(message):
     keyboard.row(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_menu"))
     bot.reply_to(
         message,
-        "🤖 *Помощь*\n\n"
-        "📌 *Команды:*\n"
+        "🤖 Помощь\n\n"
+        "📌 Команды:\n"
         "/start — главное меню\n"
         "/help — помощь\n"
         "/delete_data — удалить данные\n"
         "/premium — статус подписки\n\n"
-        "📊 *Бесплатно:* 2 запроса в день\n"
-        "⭐ *Премиум:* безлимит, полная история, VPN-статус\n\n"
+        "📊 Бесплатно: 2 запроса в день\n"
+        "⭐ Премиум: безлимит, полная история, VPN-статус\n\n"
         "📞 По вопросам: @blackbox_research",
-        reply_markup=keyboard,
-        parse_mode="Markdown"
+        reply_markup=keyboard
     )
 
 @bot.message_handler(commands=['delete_data'])
