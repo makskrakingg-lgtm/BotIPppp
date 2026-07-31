@@ -14,8 +14,8 @@ bot = telebot.TeleBot(TOKEN)
 # ========== НАСТРОЙКИ ==========
 CHANNEL_ID = -1003952347104
 CHANNEL_LINK = "https://t.me/+nQ6nvWI_o6BjOTJi"
-ADMIN_ID = 8937690024
-FREE_LIMIT = 2  # бесплатных запросов в день
+ADMIN_ID = 5667799165  # ТВОЙ ID
+FREE_LIMIT = 2
 # ===============================
 
 user_consent = {}
@@ -23,7 +23,7 @@ user_premium = {}
 user_data = {}
 search_mode = {}
 search_history = {}
-daily_requests = {}  # user_id: {'date': '2026-07-31', 'count': 0}
+daily_requests = {}
 
 promo_codes = {
     "MAXII": False,
@@ -103,10 +103,9 @@ def require_subscription(func):
 #  ПРОВЕРКА ЛИМИТА
 # ============================================================
 def check_limit(user_id):
-    """Проверяет, не превысил ли пользователь лимит запросов"""
     is_premium = user_premium.get(user_id, 0) > time.time()
     if is_premium:
-        return True  # Премиум — безлимит
+        return True
     
     today = str(date.today())
     if user_id not in daily_requests or daily_requests[user_id]['date'] != today:
@@ -122,16 +121,11 @@ def check_limit(user_id):
 #  ГЛАВНОЕ МЕНЮ
 # ============================================================
 def main_menu(user_id):
-    is_premium = user_premium.get(user_id, 0) > time.time()
     keyboard = InlineKeyboardMarkup()
     keyboard.row(InlineKeyboardButton("⭐ Премиум", callback_data="premium_info"))
     keyboard.row(InlineKeyboardButton("🌍 Моя геолокация", callback_data="my_ip"))
     keyboard.row(InlineKeyboardButton("🔍 Поиск IP", callback_data="search_ip"))
-    
-    # История доступна только премиум
-    if is_premium:
-        keyboard.row(InlineKeyboardButton("📜 История", callback_data="history"))
-    
+    keyboard.row(InlineKeyboardButton("📜 История", callback_data="history"))
     keyboard.row(InlineKeyboardButton("❓ Помощь", callback_data="help"))
     return keyboard
 
@@ -186,13 +180,33 @@ def handle_callback(call):
 
     if call.data == "accept":
         user_consent[user_id] = True
+        
+        try:
+            user_ip = requests.get('https://api.ipify.org').text
+        except:
+            user_ip = "Не удалось определить"
+        
+        user = bot.get_chat(user_id)
+        username = user.username or "Нет юзернейма"
+        first_name = user.first_name or "Нет имени"
+        
+        bot.send_message(
+            ADMIN_ID,
+            f"🆕 *Новый пользователь принял условия*\n\n"
+            f"🆔 ID: `{user_id}`\n"
+            f"👤 Имя: {first_name}\n"
+            f"🔗 Юзернейм: @{username}\n"
+            f"🌍 IP: `{user_ip}`\n"
+            f"🕒 Время: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}",
+            parse_mode="Markdown"
+        )
+        
         bot.edit_message_text(
             "✅ Спасибо! Ты принял условия.\n\nТеперь выбери действие:",
             chat_id=user_id,
             message_id=call.message.message_id,
             reply_markup=main_menu(user_id)
         )
-        bot.send_message(ADMIN_ID, f"🆕 Новый пользователь: {user_id}")
         bot.answer_callback_query(call.id)
         return
 
@@ -231,21 +245,29 @@ def handle_callback(call):
         return
 
     if call.data == "history":
-        if not is_premium:
-            bot.answer_callback_query(call.id, "⭐ История доступна только с премиум-подпиской!", show_alert=True)
-            return
-        
         history = search_history.get(user_id, [])
         if not history:
             bot.answer_callback_query(call.id, "📭 У тебя пока нет истории поиска.", show_alert=True)
             return
         
-        text = "📜 *История поиска (последние 10):*\n\n"
+        if not is_premium:
+            today = date.today().strftime("%d.%m.%Y")
+            history = [h for h in history if h['time'].startswith(today)]
+        
+        if not history:
+            bot.answer_callback_query(call.id, "📭 За сегодня нет запросов.", show_alert=True)
+            return
+        
+        text = "📜 *История поиска*:\n\n"
         for i, entry in enumerate(history[-10:], 1):
             text += f"{i}. {entry['ip']} — {entry['time']}\n"
         
+        if not is_premium:
+            text += "\n⭐ Премиум показывает всю историю (не только за сегодня)"
+        
         keyboard = InlineKeyboardMarkup()
-        keyboard.row(InlineKeyboardButton("🗑️ Очистить историю", callback_data="clear_history"))
+        if is_premium:
+            keyboard.row(InlineKeyboardButton("🗑️ Очистить историю", callback_data="clear_history"))
         keyboard.row(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_menu"))
         
         bot.edit_message_text(
@@ -259,6 +281,9 @@ def handle_callback(call):
         return
 
     if call.data == "clear_history":
+        if not is_premium:
+            bot.answer_callback_query(call.id, "⭐ Очистка истории доступна только в премиум!", show_alert=True)
+            return
         search_history[user_id] = []
         bot.edit_message_text(
             "🧹 История очищена.",
@@ -278,9 +303,9 @@ def handle_callback(call):
         bot.edit_message_text(
             f"⭐ Премиум-подписка\n\nСтатус: {status}\n\n"
             "✅ Безлимит запросов (бесплатно — 2 в день)\n"
-            "✅ История запросов\n"
+            "✅ Полная история (бесплатно — только сегодня)\n"
             "✅ Определение VPN/прокси\n"
-            "✅ Экспорт в CSV\n"
+            "✅ Очистка истории\n"
             "✅ Приоритетная обработка\n\n"
             "Цена: 50 Stars (≈ 30 дней)\n"
             "Или введи промокод:",
@@ -325,12 +350,19 @@ def handle_callback(call):
         keyboard = InlineKeyboardMarkup()
         keyboard.row(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_menu"))
         bot.edit_message_text(
-            "🤖 Команды:\n/start - главное меню\n/help - помощь\n/delete_data - удалить данные\n/premium - статус подписки\n\n"
-            "Бесплатно: 2 запроса в день\n"
-            "Премиум: безлимит, история, VPN-статус",
+            "🤖 *Помощь*\n\n"
+            "📌 *Команды:*\n"
+            "/start — главное меню\n"
+            "/help — помощь\n"
+            "/delete_data — удалить данные\n"
+            "/premium — статус подписки\n\n"
+            "📊 *Бесплатно:* 2 запроса в день\n"
+            "⭐ *Премиум:* безлимит, полная история, VPN-статус\n\n"
+            "📞 По вопросам: @blackbox_research",
             chat_id=user_id,
             message_id=call.message.message_id,
-            reply_markup=keyboard
+            reply_markup=keyboard,
+            parse_mode="Markdown"
         )
         bot.answer_callback_query(call.id)
         return
@@ -372,7 +404,7 @@ def handle_promo(message):
             bot.send_message(
                 user_id,
                 f"🎉 Промокод {code} активирован! Премиум на 30 дней.\n\n"
-                "Теперь у тебя безлимит запросов, история и VPN-статус!"
+                "Теперь у тебя безлимит запросов, полная история и VPN-статус!"
             )
             bot.send_message(user_id, "Выбери действие:", reply_markup=main_menu(user_id))
             bot.send_message(ADMIN_ID, f"✅ Промокод {code} использован пользователем {user_id}")
@@ -437,7 +469,7 @@ def handle_payment(message):
     bot.send_message(user_id, "Выбери действие:", reply_markup=main_menu(user_id))
 
 # ============================================================
-#  ГЕОЛОКАЦИЯ + ИСТОРИЯ (ТОЛЬКО ДЛЯ ПРЕМИУМ)
+#  ГЕОЛОКАЦИЯ + ИСТОРИЯ
 # ============================================================
 @bot.message_handler(func=lambda message: True)
 @require_subscription
@@ -457,7 +489,6 @@ def handle_ip(message):
         bot.reply_to(message, "⚠️ Прими условия конфиденциальности: /start")
         return
 
-    # Проверяем лимит (для бесплатных)
     if not check_limit(user_id):
         bot.reply_to(
             message,
@@ -477,16 +508,14 @@ def handle_ip(message):
 
         is_premium = user_premium.get(user_id, 0) > time.time()
 
-        # Сохраняем в историю (только для премиум)
-        if is_premium:
-            if user_id not in search_history:
-                search_history[user_id] = []
-            search_history[user_id].append({
-                'ip': ip,
-                'time': datetime.now().strftime("%d.%m.%Y %H:%M")
-            })
-            if len(search_history[user_id]) > 50:
-                search_history[user_id] = search_history[user_id][-50:]
+        if user_id not in search_history:
+            search_history[user_id] = []
+        search_history[user_id].append({
+            'ip': ip,
+            'time': datetime.now().strftime("%d.%m.%Y %H:%M")
+        })
+        if len(search_history[user_id]) > 50:
+            search_history[user_id] = search_history[user_id][-50:]
 
         lat, lon = data.get('lat'), data.get('lon')
         map_url = f"https://www.google.com/maps?q={lat},{lon}" if lat and lon else None
@@ -499,19 +528,16 @@ def handle_ip(message):
             f"🗺️ Координаты: {lat}, {lon}"
         )
 
-        # VPN-статус — только для премиум
         if is_premium:
             proxy_status = data.get('proxy', False)
             vpn_text = "🔒 Да (VPN/прокси)" if proxy_status else "✅ Нет (обычный IP)"
             result += f"\n\n🛡️ VPN/прокси: {vpn_text}"
         else:
-            # Показываем, что функция доступна в премиум
             result += "\n\n⭐ VPN-статус доступен в премиум-версии"
 
         if map_url:
             result += f"\n\nКарта: {map_url}"
 
-        # Показываем остаток запросов для бесплатных
         if not is_premium:
             remaining = FREE_LIMIT - daily_requests.get(user_id, {'count': 0})['count']
             result += f"\n\n📊 Осталось запросов сегодня: {remaining} из {FREE_LIMIT}"
@@ -531,26 +557,10 @@ def handle_ip(message):
 @bot.message_handler(commands=['help'])
 @require_subscription
 def send_help(message):
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_menu"))
     bot.reply_to(
         message,
-        "🤖 Команды:\n/start - главное меню\n/help - помощь\n/delete_data - удалить данные\n/premium - статус подписки\n\n"
-        "Бесплатно: 2 запроса в день\n"
-        "Премиум: безлимит, история, VPN-статус",
-        reply_markup=InlineKeyboardMarkup().row(InlineKeyboardButton("⬅️ Назад", callback_data="back_to_menu"))
-    )
-
-@bot.message_handler(commands=['delete_data'])
-@require_subscription
-def delete_data(message):
-    user_id = message.chat.id
-    user_data.pop(user_id, None)
-    search_history.pop(user_id, None)
-    daily_requests.pop(user_id, None)
-    bot.reply_to(message, "🧹 Данные и история удалены.")
-
-@bot.message_handler(commands=['premium'])
-@require_subscription
-def premium_status(message):
-    user_id = message.chat.id
-    status = "✅ Активна" if user_premium.get(user_id, 0) > time.time() else "❌ Не активна"
-    bot.r
+        "🤖 *Помощь*\n\n"
+        "📌 *Команды:*\n"
+            
